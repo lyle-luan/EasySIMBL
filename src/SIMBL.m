@@ -118,15 +118,27 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
     
     // NSApplicationSupportDirectory does not return Container, so use NSLibraryDirectory.
     
+    //在/Library/Application Support/SIMBL/Plugins和~/Library/Application Support/SIMBL/Plugins
+    //两个路径下查找plugin。
 	NSArray* paths = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory,  NSUserDomainMask, YES);
-	for (NSString* libraryPath in paths) {
+    
+	for (NSString* libraryPath in paths)
+    {
 		NSString* simblPath = [NSString pathWithComponents:[NSArray arrayWithObjects:libraryPath, EasySIMBLApplicationSupportPathComponent, EasySIMBLPluginsPathComponent, nil]];
+        
         NSError *err = NULL;
-		NSArray* simblBundles = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:simblPath error:&err] pathsMatchingExtensions:[NSArray arrayWithObject:@"bundle"]];
-        if (err) {
+		
+        //读取目录下，以bundle结尾的文件名的数组
+        NSArray* simblBundles = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:simblPath error:&err] pathsMatchingExtensions:[NSArray arrayWithObject:@"bundle"]];
+        
+        if (err)
+        {
             SIMBLLogNotice(@"contentsOfDirectoryAtPath err:%@",err);
         }
-		for (NSString* bundleName in simblBundles) {
+        
+        //把读取到的需要注入的plugin放置到数组中备用。
+		for (NSString* bundleName in simblBundles)
+        {
 			[pluginPathList addObject:[simblPath stringByAppendingPathComponent:bundleName]];
 		}
 	}
@@ -154,9 +166,15 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 
 + (BOOL) shouldInstallPluginsIntoApplication:(NSRunningApplication*)runningApp;
 {
-	for (NSString* path in [SIMBL pluginPathList]) {
+    //只安装一个plugin？
+    //对于一个runningApp只注入一个plugin，可能是一次只注入一个吧。
+    //不是上面的描述，这个类方法是判断对runningApp是否要注入。
+    //读取目标路径内的每个需要注入的plugin。
+	for (NSString* path in [SIMBL pluginPathList])
+    {
 		BOOL bundleShouldInstallPlugins = [SIMBL shouldApplication:runningApp loadBundleAtPath:path];
-		if (bundleShouldInstallPlugins) {
+		if (bundleShouldInstallPlugins)
+        {
 			SIMBLLogDebug(@"should install plugin %@", path);
 			return YES;
         }
@@ -194,32 +212,44 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
  * get this list of allowed application identifiers from the plugin's Info.plist
  * the special value * will cause any Cocoa app to load a bundle
  * @return YES if this should be loaded
+ * plugin可以设置其需要注入的App，比如只注入Safari。
  */
 + (BOOL) shouldApplication:(NSRunningApplication*)runningApp loadBundleAtPath:(NSString*)_bundlePath
 {
 	SIMBLLogDebug(@"checking bundle %@", _bundlePath);
 	_bundlePath = [_bundlePath stringByStandardizingPath];
+    
 	NSBundle* pluginBundle = [NSBundle bundleWithPath:_bundlePath];
-	if (pluginBundle == nil) {
+    
+	if (pluginBundle == nil)
+    {
 		SIMBLLogNotice(@"Unable to load bundle at path '%@'", _bundlePath);
 		return NO;
 	}
 	
 	NSString* pluginIdentifier = [pluginBundle bundleIdentifier];
-	if (pluginIdentifier == nil) {
+	if (pluginIdentifier == nil)
+    {
 		SIMBLLogNotice(@"No identifier for bundle at path '%@'", _bundlePath);
 		return NO;
 	}
 	
 	// this is the new way of specifying when to load a bundle
+    // 从bundle的info.plis文件中读出该bundle注入的App。
 	NSArray* targetApplications = [pluginBundle SIMBL_objectForInfoDictionaryKey:SIMBLTargetApplications];
 	if (targetApplications)
+    {
 		return [self shouldApplication:runningApp loadBundle:pluginBundle withTargetApplications:targetApplications];
+    }
 	
 	// fall back to the old method for older plugins - we should probably throw a depreaction warning
+    // 旧方法，跟上面那个差不多一样。
 	NSArray* applicationIdentifiers = [pluginBundle SIMBL_objectForInfoDictionaryKey:SIMBLApplicationIdentifier];
+    
 	if (applicationIdentifiers)
+    {
 		return [self shouldApplication:runningApp loadBundle:pluginBundle withApplicationIdentifiers:applicationIdentifiers];
+    }
 	
 	return NO;
 }
@@ -280,29 +310,56 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
  * the special value * will cause any Cocoa app to load a bundle
  * if there is a match, this calls the main bundle's load method
  * @return YES if this bundle should be loaded
+ * 这里是主要的函数，貌似，它会调用在bundle中定义的函数，在runningApp中运行。结果不是。
  */
 + (BOOL) shouldApplication:(NSRunningApplication*)runningApp loadBundle:(NSBundle*)_bundle withTargetApplications:(NSArray*)_targetApplications
 {
+    //获取runningApp的标示
 	NSString* appIdentifier = [runningApp bundleIdentifier];
+    
+    //获取runningApp的bundle
     NSURL *bundleURL = runningApp.bundleURL;
     NSBundle *_appBundle = bundleURL ? [NSBundle bundleWithURL:bundleURL] : nil;
-	for (NSDictionary* targetAppProperties in _targetApplications) {
+    
+    //遍历plugin的targetApp
+	for (NSDictionary* targetAppProperties in _targetApplications)
+    {
 		NSString* targetAppIdentifier = [targetAppProperties objectForKey:SIMBLBundleIdentifier];
 		SIMBLLogDebug(@"checking target identifier %@", targetAppIdentifier);
         
-        // wildcard targeting plugins should not be loaded into background apps or agent apps
+        //wildcard targeting plugins should not be loaded into background apps or agent apps
+        
+//        The following activation policies control whether and how an application may be activated.  They are determined by the Info.plist.
+//        typedef NS_ENUM(NSInteger, NSApplicationActivationPolicy) {
+//            The application is an ordinary app that appears in the Dock and may have a user interface.  This is the default for bundled apps, unless overridden in the Info.plist.
+//            NSApplicationActivationPolicyRegular,
+//            
+//            The application does not appear in the Dock and does not have a menu bar, but it may be activated programmatically or by clicking on one of its windows.  This corresponds to LSUIElement=1 in the Info.plist.
+//            NSApplicationActivationPolicyAccessory,
+//            
+//            The application does not appear in the Dock and may not create windows or be activated.  This corresponds to LSBackgroundOnly=1 in the Info.plist.  This is also the default for unbundled executables that do not have Info.plists.
+//            NSApplicationActivationPolicyProhibited
+//        };
+        // 如果改plugin注入到所有的App（＊），不应该注入到后台(NSApplicationActivationPolicyAccessory)和agentApp(NSApplicationActivationPolicyProhibited)。
         if ([targetAppIdentifier isEqualToString:@"*"] == YES &&
             (runningApp.activationPolicy == NSApplicationActivationPolicyAccessory ||
              runningApp.activationPolicy == NSApplicationActivationPolicyProhibited))
+        {
             continue;
+        }
         
 		if ([targetAppIdentifier isEqualToString:appIdentifier] == NO &&
             [targetAppIdentifier isEqualToString:@"*"] == NO)
+        {
 			continue;
+        }
         
+        //在plist中读取的App的路径，不同于runningApp的路径
 		NSString* targetAppPath = [targetAppProperties objectForKey:SIMBLTargetApplicationPath];
 		if (targetAppPath && [targetAppPath isEqualToString:[_appBundle bundlePath]] == NO)
+        {
 			continue;
+        }
         
 		// FIXME: this has never been used - it should probably be removed.
 		NSArray* requiredFrameworks = [targetAppProperties objectForKey:SIMBLRequiredFrameworks];
@@ -317,25 +374,33 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 				NSBundle* framework = [NSBundle bundleWithIdentifier:[requiredFramework objectForKey:@"BundleIdentifier"]];
 				NSString* frameworkPath = [framework bundlePath];
 				NSString* requiredPath = [requiredFramework objectForKey:@"BundlePath"];
-				if ([frameworkPath isEqualToString:requiredPath] == NO) {
+				if ([frameworkPath isEqualToString:requiredPath] == NO)
+                {
 					missingFramework = YES;
 				}
 			}
 		}
 		
 		if (missingFramework)
+        {
 			continue;
+        }
 		
+        //runningApp的版本
 		int appVersion = [[_appBundle _dt_bundleVersion] intValue];
 		
 		int minVersion = 0;
 		NSNumber* number;
 		if ((number = [targetAppProperties objectForKey:SIMBLMinBundleVersion]))
+        {
 			minVersion = [number intValue];
+        }
         
 		int maxVersion = 0;
 		if ((number = [targetAppProperties objectForKey:SIMBLMaxBundleVersion]))
+        {
 			maxVersion = [number intValue];
+        }
 		
 		if ((maxVersion && appVersion > maxVersion) || (minVersion && appVersion < minVersion))
 		{
@@ -343,6 +408,7 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 			continue;
 		}
 		
+        //runningApp要注入这个plugin。
 		return YES;
 	}
 	

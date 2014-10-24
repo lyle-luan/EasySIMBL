@@ -33,14 +33,18 @@
     NSBundle *loginItemBundle = nil;
     NSString *loginItemBundleVersion = nil;
     NSError *error = nil;
-    NSString *loginItemsPath = [[[NSBundle mainBundle]bundlePath]stringByAppendingPathComponent:@"Contents/Library/LoginItems"];
-    NSArray *loginItems = [[[NSFileManager defaultManager]contentsOfDirectoryAtPath:loginItemsPath error:&error]
-                           pathsMatchingExtensions:[NSArray arrayWithObject:@"app"]];
-    if (error) {
+    NSString *loginItemsPath = [[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents/Library/LoginItems"];
+    NSArray *loginItems = [[[NSFileManager defaultManager]contentsOfDirectoryAtPath:loginItemsPath error:&error] pathsMatchingExtensions:[NSArray arrayWithObject:@"app"]];
+    if (error)
+    {
         SIMBLLogNotice(@"contentsOfDirectoryAtPath error:%@", error);
-    } else if (![loginItems count]) {
+    }
+    else if (![loginItems count])
+    {
         SIMBLLogNotice(@"no loginItems found at %@", loginItemsPath);
-    } else {
+    }
+    else
+    {
         loginItemBundlePath = [loginItemsPath stringByAppendingPathComponent:[loginItems objectAtIndex:0]];
         loginItemBundle = [NSBundle bundleWithPath:loginItemBundlePath];
         loginItemBundleVersion = [loginItemBundle _dt_bundleVersion];
