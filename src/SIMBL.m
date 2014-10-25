@@ -22,6 +22,7 @@
  */
 - (NSDictionary*) SIMBL_infoDictionary;
 {
+    // 将bundle的 Info.plist文件读取为一个字典。
     NSString* infoPath = [[self bundlePath]stringByAppendingPathComponent:@"/Contents/Info.plist"];
     NSDictionary *dictionary = [NSDictionary dictionaryWithContentsOfFile:infoPath];
     return dictionary;
@@ -36,36 +37,52 @@
  */
 - (id) SIMBL_objectForInfoDictionaryKey: (NSString*)key
 {
+    //读取bundleInfo.plist文件某个key的value。
     return [[self SIMBL_infoDictionary]objectForKey:key];
 }
 
 - (NSString*) _dt_info
 {
+    // CFBundleGetInfoString这个key来老了，NSHumanReadableCopyright来代替他。
+    // 获取bundle的版权信息，比如： © 2008, My Company
 	return [self SIMBL_objectForInfoDictionaryKey: @"CFBundleGetInfoString"];
 }
 
 - (NSString*) _dt_version
 {
+    // bundle版本
 	return [self SIMBL_objectForInfoDictionaryKey: @"CFBundleShortVersionString"];
 }
 
 - (NSString*) _dt_bundleVersion
 {
+    // bundle的版本
 	return [self SIMBL_objectForInfoDictionaryKey: (NSString*)kCFBundleVersionKey];
 }
 
 - (NSString*) _dt_name
 {
+    // bundle名字
 	return [self SIMBL_objectForInfoDictionaryKey:(NSString*)kCFBundleNameKey];
 }
 
 - (BOOL) SIMBL_isLSUIElement
 {
+    // 以下解释下LSUIElement：
+    // “Application is agent (UIElement)”
+    // Specifies whether the app is an agent app, that is, an app that should not appear in the Dock or Force Quit window. See LSUIElement for details.
+    // details:
+    // LSUIElement (String - OS X) specifies whether the app runs as an agent app. If this key is set to “1”, Launch Services runs the app as an agent app. Agent apps do not appear in the Dock or in the Force Quit window. Although they typically run as background apps, they can come to the foreground to present a user interface if desired. A click on a window belonging to an agent app brings that app forward to handle events.
+    // controlWindows就是这样的嘛。
+    // 不出现在“Dock”和“强制退出”中，一般运行在后台，偶尔出来接受用户的交互。
+    
+    // The Dock and loginwindow are two apps that run as agent apps.
     return [[self SIMBL_objectForInfoDictionaryKey:@"LSUIElement"]boolValue];
 }
 
 - (BOOL) SIMBL_isLSBackgroundOnly
 {
+    // 后台程序，嗯。
     return [[self SIMBL_objectForInfoDictionaryKey:@"LSBackgroundOnly"]boolValue];
 }
 
@@ -91,23 +108,44 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 
 + (void) initialize
 {
-    if (![[[NSBundle mainBundle]bundleIdentifier] isEqualToString:EasySIMBLSuiteBundleIdentifier]) {
+    // The runtime sends initialize to each class in a program just before the class,
+    // 也就是必然会执行。
+    
+    if (![[[NSBundle mainBundle]bundleIdentifier] isEqualToString:EasySIMBLSuiteBundleIdentifier])
+    {
+        //如果bundle不是com.github.norio-nomura.EasySIMBL的话
+        //所以bundle到底是啥，这么神奇。
         NSUserDefaults* defaults = [[NSUserDefaults alloc] init];
+        
+        //Inserts the specified domain name into the receiver’s search list.
+        //The suiteName domain is similar to a bundle identifier string, but is not necessarily tied to a particular application or bundle. A suite can be used to hold preferences that are shared between multiple applications.
+        //Searches of preferences tied to a suite follow the normal pattern, searching first for current user, current host, then
+        //嗯?
         [defaults addSuiteNamed:EasySIMBLSuiteBundleIdentifier];
+        
+        //关于log的等级，添加在NSUserDefaults里，奇怪。
+        // 添加一个 NSRegistrationDomain 。
+        // NSRegistrationDomain： The domain consisting of a set of temporary defaults whose values can be set by the application to ensure that searches will always be successful.
+        // 避免搜索失败的临时工，，
         [defaults registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:SIMBLLogLevelDefault], SIMBLPrefKeyLogLevel, nil]];
+        
+        // ARC与非ARC混合编译，所以我们不需要他。
 #if !__has_feature(objc_arc)
         [defaults release];
 #endif
     }
 }
 
+//哪些打印log宏定义的函数原型。
 + (void) logMessage:(NSString*)message atLevel:(int)level
 {
 	NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    if (![[[NSBundle mainBundle]bundleIdentifier] isEqualToString:EasySIMBLSuiteBundleIdentifier]) {
+    if (![[[NSBundle mainBundle]bundleIdentifier] isEqualToString:EasySIMBLSuiteBundleIdentifier])
+    {
         [defaults addSuiteNamed:EasySIMBLSuiteBundleIdentifier];
     }
-	if ([defaults integerForKey:SIMBLPrefKeyLogLevel] <= level) {
+	if ([defaults integerForKey:SIMBLPrefKeyLogLevel] <= level)
+    {
 		NSLog(@"#EasySIMBL %@", message);
 	}
 }
@@ -148,15 +186,23 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 
 + (void) installPlugins
 {
+    //在osax.m中调用。
 	if (loadedBundleIdentifiers == nil)
+    {
+        //线程不安全的单例
 		loadedBundleIdentifiers = [[NSMutableDictionary alloc] init];
+    }
 	
 	SIMBLLogDebug(@"SIMBL loaded by path %@ <%@>", [[NSBundle mainBundle] bundlePath], [[NSBundle mainBundle]bundleIdentifier]);
 	
-	for (NSString* path in [SIMBL pluginPathList]) {
+    //为本程序安装插件。
+	for (NSString* path in [SIMBL pluginPathList])
+    {
 		BOOL bundleLoaded = [SIMBL loadBundleAtPath:path];
 		if (bundleLoaded)
+        {
 			SIMBLLogDebug(@"loaded %@", path);
+        }
 	}
     
     [[NSDistributedNotificationCenter defaultCenter]postNotificationName:EasySIMBLHasBeenLoadedNotification
@@ -185,6 +231,7 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 
 + (NSString*)applicationSupportPath;
 {
+    // 返回该路径/Users/app/Library/Application Support/SIMBL
     static NSString *applicationSupportPath = nil;
     if (!applicationSupportPath) {
         
@@ -203,6 +250,7 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
  */
 + (BOOL) shouldLoadBundleAtPath:(NSString*)_bundlePath
 {
+    //获取本程序的NSRunningApplication对象
 	NSRunningApplication *runningApp = [NSRunningApplication currentApplication];
 	return [SIMBL shouldApplication:runningApp loadBundleAtPath:_bundlePath];
 }
@@ -260,13 +308,17 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
  * the special value * will cause any Cocoa app to load a bundle
  * if there is a match, this calls the main bundle's load method
  * @return YES if this bundle was loaded
+ * 安装plugin。
  */
 + (BOOL) loadBundleAtPath:(NSString*)_bundlePath
 {
-	if ([SIMBL shouldLoadBundleAtPath:_bundlePath] == NO) {
+	if ([SIMBL shouldLoadBundleAtPath:_bundlePath] == NO)
+    {
 		return NO;
 	}
 	
+    //本程序需要安装该插件？有点不对呀。
+    
 	NSBundle* pluginBundle = [NSBundle bundleWithPath:_bundlePath];
     
 	// check to see if we already loaded code for this identifier (keeps us from double loading)
@@ -274,7 +326,9 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 	// "physician, heal thyself!"
 	NSString* pluginIdentifier = [pluginBundle bundleIdentifier];
 	if ([loadedBundleIdentifiers objectForKey:pluginIdentifier] != nil)
+    {
 		return NO;
+    }
 	return [SIMBL loadBundle:pluginBundle];
 }
 
@@ -287,6 +341,7 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
  */
 + (BOOL) shouldApplication:(NSRunningApplication*)runningApp loadBundle:(NSBundle*)_bundle withApplicationIdentifiers:(NSArray*)_applicationIdentifiers
 {
+    // App是否需要安装改bundle。
 	NSString* appIdentifier = [runningApp bundleIdentifier];
 	for (NSString* specifiedIdentifier in _applicationIdentifiers) {
 		SIMBLLogDebug(@"checking bundle %@ for identifier %@", [_bundle bundleIdentifier], specifiedIdentifier);
@@ -425,14 +480,21 @@ static NSMutableDictionary* loadedBundleIdentifiers = nil;
 	@try
 	{
 		// getting the principalClass should force the bundle to load
+        // 这里重新创建一个新的bundle，为啥？
 		NSBundle* bundle = [NSBundle bundleWithPath:[_plugin bundlePath]];
+        
+        //获取principalClass类，这个类会在plist文件内指定一个函数，该函数是plugin的入口函数。
 		Class principalClass = [bundle principalClass];
 		
 		// if the principal class has an + (void) install message, call it
-		if (principalClass && [principalClass respondsToSelector:@selector(install)]) {
-            if ([self isRunningOriginalSIMBLAgent]) {
+		if (principalClass && [principalClass respondsToSelector:@selector(install)])
+        {
+            if ([self isRunningOriginalSIMBLAgent])
+            {
                 SIMBLLogNotice(@"It seems the original SIMBL Agent is running. So, I don't call +install because which cause double initialization problem of plugin.");
-            } else {
+            }
+            else
+            {
                 [principalClass install];
             }
         }

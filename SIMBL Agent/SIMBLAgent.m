@@ -38,6 +38,9 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     //osax.m这个文件应该是EasySIMBL.osax。
     //还有一些漏的源码没看，注入应该还有其他的操作。
     //先弄懂SBApplication好了。
+    // plist 文件内Principal class 这个东西调用了plugin的install函数，该函数定义了plugin注入的操作貌似。
+    // plist文件内OSAXHandlers，指定了一个handler：InjectEventHandler
+    // 该函数在osax.m中调用.被EasySIMBLInitializer代替了，在queue中运行installPlugins，安装plugins。
     
     
     SIMBLLogInfo(@"agent started");
@@ -193,6 +196,7 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
 
 - (void) receiveSIMBLHasBeenLoadedNotification:(NSNotification*)notification
 {
+    // SIMBL已经成功启动。貌似是注入成功了某个App。
     SIMBLLogDebug(@"receiveSIMBLHasBeenLoadedNotification from %@", notification.object);
 	self.waitingInjectionNumber--;
     if (!self.waitingInjectionNumber)
@@ -200,6 +204,7 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
         NSError *error = nil;
         if (![[NSFileManager defaultManager]removeItemAtPath:self.linkedOsaxPath error:&error])
         {
+            //如果所有的App都被注入了，则删除/Users/app/Library/ScriptingAdditions/EasySIMBL.osax文件？
             SIMBLLogNotice(@"removeItemAtPath error:%@",error);
         }
     }
