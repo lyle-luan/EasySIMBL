@@ -43,6 +43,14 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     // 该函数在osax.m中调用.被EasySIMBLInitializer代替了，在queue中运行installPlugins，安装plugins。
     
     
+    //
+    // 看了easysimbl的提交纪录，发现easysimbl的修改不关乎怎么注入，以下事件用来注入：
+    //
+    // SBApplication 发送事件（这个没弄懂）
+    // 拷贝EasySIMBL.osax，Container等，easy修改了路径。
+    // Principal class
+    
+    
     SIMBLLogInfo(@"agent started");
     
     /*You should consider using the NSFileManager methods URLsForDirectory:inDomains: and URLForDirectory:inDomain:appropriateForURL:create:error:. which return URLs, which are the preferred format.*/
