@@ -46,9 +46,54 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     //
     // 看了easysimbl的提交纪录，发现easysimbl的修改不关乎怎么注入，以下事件用来注入：
     //
-    // SBApplication 发送事件（这个没弄懂）
+    // SBApplication 发送事件（这个没弄懂）看了SBApplication文档也看了示例还是没弄懂。
+    // 在EasySIMBL中没有了sdp,sdef这两个命令，在SIMBL中有。
+    // 在SIMBL中SBApplication发送SIMe，在SIMBL.sdef中找到命令是SIMeleop，在SIMBL目标的plist中找到对应value是InjectEventHandler。就是调用installPlugins。也就是找到Principal 然后执行install。
+    // SIMBL的文档：描述怎么写plugin的，步骤如下：
+    //
+    // 这么看来SBApplication没用呀：启动的App发送event，SIMBL得到event触发自己的函数？奇怪
+    // SIMBL用[[NSWorkspace sharedWorkspace] notificationCenter]的NSWorkspaceDidLaunchApplicationNotification事件获取启动的App。
+    // Easy用[NSWorkspace sharedWorkspace]的KVO来获取正在执行的App。
+    
+    
+    
+    
+    
     // 拷贝EasySIMBL.osax，Container等，easy修改了路径。
-    // Principal class
+    // SIMBL没有该部分代码。
+    
+    
+    
+    
+    
+    
+    // Principal class：
+    // NSPrincipalClass (String - OS X). This key contains a string with the name of a bundle’s principal class. This key is used to identify the entry point for dynamically loaded code, such as plug-ins and other dynamically-loaded bundles. The principal class of a bundle typically controls all other classes in the bundle and mediates between those classes and any classes outside the bundle. The class identified by this value can be retrieved using the principalClass method of NSBundle. For Cocoa apps, the value for this key is NSApplication by default.
+    
+    /*NSBundle principalClass
+     The bundle’s principal class. (read-only)
+     
+     Declaration
+     SWIFT
+     var principalClass: AnyClass? { get }
+     OBJECTIVE-C
+     @property(readonly) Class principalClass
+     Discussion
+     This property is set after ensuring that the code containing the definition of the class is dynamically loaded. If the bundle encounters errors in loading or if it can’t find the executable code file in the bundle directory, this property is nil.
+     
+     The principal class typically controls all the other classes in the bundle; it should mediate between those classes and classes external to the bundle. Classes (and categories) are loaded from just one file within the bundle directory. The bundle obtains the name of the code file to load from the dictionary returned from infoDictionary, using “NSExecutable” as the key. The bundle determines its principal class in one of two ways:
+     
+     It first looks in its own information dictionary, which extracts the information encoded in the bundle’s property list (Info.plist). The bundle obtains the principal class from the dictionary using the key NSPrincipalClass. For non-loadable bundles (applications and frameworks), if the principal class is not specified in the property list, this property is nil.
+     
+     If the principal class is not specified in the information dictionary, the bundle identifies the first class loaded as the principal class. When several classes are linked into a dynamically loadable file, the default principal class is the first one listed on the ld command line. In the following example, Reporter would be the principal class:
+     
+     ld -o myBundle -r Reporter.o NotePad.o QueryList.o
+     The order of classes in Xcode’s project browser is the order in which they will be linked. To designate the principal class, control-drag the file containing its implementation to the top of the list.
+     
+     As a side effect of code loading, the receiver posts NSBundleDidLoadNotification after all classes and categories have been loaded; see Notifications for details.
+     */
+    
+    // 这貌似是个坑。SIMBL有两个target，其中一个的principalClass是SIMBL类，该类没有实现install方法。
     
     
     SIMBLLogInfo(@"agent started");
@@ -370,6 +415,7 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
         
         // 这两句不好懂呐，要看苹果官方文档才行。
         [sbApp setSendMode:kAENoReply | kAENeverInteract | kAEDontRecord];
+        // SBApplication的父类SBObject的方法sendEvent。
         [sbApp sendEvent:kASAppleScriptSuite id:kGetAEUT parameters:0];
         
         // the reply here is of some unknown type - it is not an Objective-C object
