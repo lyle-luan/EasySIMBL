@@ -48,8 +48,28 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     //
     // SBApplication 发送事件（这个没弄懂）看了SBApplication文档也看了示例还是没弄懂。
     // 在EasySIMBL中没有了sdp,sdef这两个命令，在SIMBL中有。
-    // 在SIMBL中SBApplication发送SIMe，在SIMBL.sdef中找到命令是SIMeleop，在SIMBL目标的plist中找到对应value是InjectEventHandler。就是调用installPlugins。也就是找到Principal 然后执行install。
+    // sdef命令产生.sdef文件，在SIMBL中有该文件，形似XML，使用sdp转化该文件后，可以得到SBApplication的某个子类的头文件，该文件里定义了SBApplicatin发送event对应的函数。EasySIMBL应该是直接把该头文件include进工程了。
+    // 在SIMBL中SBApplication发送SIMe，在SIMBL.sdef中找到命令是SIMeleop或者SIMeload，在SIMBL目标的plist中找到对应value是InjectEventHandler。就是调用installPlugins。也就是找到Principal 然后执行install。
+    // 在InjectEventHandler函数中已经是其他App了？
+    // 这里执行的是bundle的类install方法，为什么在plugin中执行的确实load类方法。
+    // 在SIMBL中install是以下：
+    // @protocol SIMBLPlugin
+    // + (void) install;
+    // @end
+    // 定义的协议中的类方法。只是为了声明一个install类方法，不然在用principal那就不能调用，函数未定义。也可以声明为一个简单的类方法声明，但是这样会有警告，有声明没定义。
+    //
+    
+    // 在Afloat中的plist文件内定义的Principal类是Afloat类，里面定义了load类方法，但是该方法没有外部链接。
+    // 这个install是什么？
+    // load和install都会执行，load是加载bundle自动执行的，install是principal类执行的。load跟principal无关，应该类似main这样的函数。
+    
+    // 接口：- (id)sendEvent:(AEEventClass)eventClass id:(AEEventID)eventID parameters:(DescType)firstParamCode。sendEvent参数是SIMe，id参数是AEEventID类型的'load'或者'leop'来确定执行的事sdef文件中SIMeleop和SIMeload分别定义的命令，只是这里是一样的。
+    
+    // 这跟Info.plist文件内的OSAXHandlers有毛关系。here
     // SIMBL的文档：描述怎么写plugin的，步骤如下：
+    
+    // 1.编辑Info.plist文件，添加principalclass。
+    // 2.+(void)load类方法，SIMBL加载某个plugin的principal类后执行的方法。单实例：singleton object。
     //
     // 这么看来SBApplication没用呀：启动的App发送event，SIMBL得到event触发自己的函数？奇怪
     // SIMBL用[[NSWorkspace sharedWorkspace] notificationCenter]的NSWorkspaceDidLaunchApplicationNotification事件获取启动的App。
