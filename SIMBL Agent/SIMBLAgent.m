@@ -66,6 +66,10 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     // 接口：- (id)sendEvent:(AEEventClass)eventClass id:(AEEventID)eventID parameters:(DescType)firstParamCode。sendEvent参数是SIMe，id参数是AEEventID类型的'load'或者'leop'来确定执行的事sdef文件中SIMeleop和SIMeload分别定义的命令，只是这里是一样的。
     
     // 这跟Info.plist文件内的OSAXHandlers有毛关系。here
+    // 大关系咯，SIMBL既是event的发送者也是接收者，发送用SBApplication可以发送，接收需要一个OSAX类型的bundle，并且通过定义OSAXHandlers来确定接收event后的处理。
+    
+    // SIMBL里好像不用指定目标App的头文件？SBApplication发送就是接收到的都会响应？也就是说不用sdef文件哪些东西？还是先试试OSAX好了，如果不行在详细看看Scripting Bridge的编程指南。
+    
     // SIMBL的文档：描述怎么写plugin的，步骤如下：
     
     // 1.编辑Info.plist文件，添加principalclass。
@@ -116,6 +120,22 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     // 这貌似是个坑。SIMBL有两个target，其中一个的principalClass是SIMBL类，该类没有实现install方法。
     
     
+    // 貌似是目标App发送events，比如你想给mail发送event，那么你需要过的mail的SBApplicatin类，然后sendEvent。发送者就是接受者。
+    // 是的，用谁的sbapplication发送，谁就是terget，它就响应。
+    
+    
+    
+    // 终于弄明白了：
+    // osax放到系统目录下，某个app都会加载osax，osax注册接受Apple event。
+    // simbl检测启动的app，然后像app发送Apple event，相当于向osax发送。
+    // 因此目标app加载plugin。
+    // osax为脚本扩展，给所有app添加了响应Apple event的方法。
+    // 但是carban为啥不行勒。
+    
+    // 编译osaxTry将osaxTryosax.osax放置到/Library/ScriptingAdditions目录下。
+    // 启动AnthorScriptTest项目，监听启动App和发送scripting bridge消息。
+    // 启动thirdScriptTest，自动加载osax，响应AnthorScriptTest向osax发送的消息。
+
     SIMBLLogInfo(@"agent started");
     
     /*You should consider using the NSFileManager methods URLsForDirectory:inDomains: and URLForDirectory:inDomain:appropriateForURL:create:error:. which return URLs, which are the preferred format.*/
