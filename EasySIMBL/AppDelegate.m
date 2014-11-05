@@ -112,6 +112,9 @@
 #pragma mark IBAction
 
 - (IBAction)toggleUseSIMBL:(id)sender {
+    
+    // check会将application bundle's Contents/Library/LoginItems 目录下的SIMBL Agent使能。并且keep running？是指一直运行？
+    
     NSInteger result = self.useSIMBL.state;
     
     CFStringRef bundleIdentifeierRef = (__bridge CFStringRef)self.loginItemBundleIdentifier;

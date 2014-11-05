@@ -9,8 +9,10 @@
 __attribute__((constructor))
 static void EasySIMBLInitializer()
 {
-    @autoreleasepool {
-        dispatch_async(dispatch_get_main_queue(), ^(void) {
+    @autoreleasepool
+    {
+        dispatch_async(dispatch_get_main_queue(), ^(void)
+        {
             [SIMBL installPlugins];
         });
     }
@@ -21,6 +23,7 @@ OSErr InjectEventHandler(const AppleEvent *ev, AppleEvent *reply, long refcon)
 {
 	// do nothings, because sandboxed app call this. But leave this function for preventing errors are logged.
     // Now EasySIMBLInitializer() is used instead.
+    // 怎么代替的？
     SIMBLLogDebug(@"InjectEventHandler has called, but do nothings.");
 	return noErr;
 }

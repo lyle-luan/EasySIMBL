@@ -30,6 +30,25 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
 
 - (void) applicationDidFinishLaunching:(NSNotification*)notificaion
 {
+    // 为什么easy的osax拷贝在用户目录下可行，但是simbl和我的都不行。
+    // 难道是sdef这种方式的问题？
+    // 把osaxhandlers的Context从Process改为User后，将osax放在/Libarary...目录下不能加载，但是放到用户的library目录下也不行，但是感觉就是这里了。
+    
+    // easy还可以hack carbon程序呢。
+    // 不是，是能hack finder，但是sublime不行。
+    
+    // 不要SB，，，在osax中实现带Initializer字段的函数就行，该函数在osax被加载时自动调用。
+    // 不是函数名的问题，是要加这个字段__attribute__((constructor))，这个字段修饰的函数会在share library加载的时候调用。
+    // 这个字段__attribute__((destructor))修饰的是在share library卸载的时候调用。
+    // 这样可以把osax放到用户的library目录下。GOOD。
+    
+    // 还是要SB，不然不会加载__attribute__((constructor))函数，奇怪，但是osax不用sdef文件了。那传什么命令都可以么？
+    // 不行，还是要发osaxhandlers注册的命令。
+    
+    // 总之SB都是要的，都要发Apple events，使用__attribute__((constructor))可以在用户的目录下，而且两种都不是每次都触发。所以感觉用__attribute__((constructor))好一点。
+    
+    // 不是每次都触发可能跟监听app启动有关感觉。
+    
     //看过
     
     //所以注入就是- (void) injectSIMBL:(NSRunningApplication *)runningApp方法。
