@@ -155,6 +155,11 @@ NSString * const kInjectedSandboxBundleIdentifiers = @"InjectedSandboxBundleIden
     // 启动AnthorScriptTest项目，监听启动App和发送scripting bridge消息。
     // 启动thirdScriptTest，自动加载osax，响应AnthorScriptTest向osax发送的消息。
 
+    
+    // [sbApp setSendMode:kAENoReply | kAENeverInteract | kAEDontRecord];
+    // [sbApp sendEvent:kASAppleScriptSuite id:kGetAEUT parameters:0];
+    // 多发以上两行，App启动后响应的概率提高。
+    
     SIMBLLogInfo(@"agent started");
     
     /*You should consider using the NSFileManager methods URLsForDirectory:inDomains: and URLForDirectory:inDomain:appropriateForURL:create:error:. which return URLs, which are the preferred format.*/
